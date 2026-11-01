@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Help – Family Restaurant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+ 
+<div class="pg"><div class="wrap"><h1>Help Center</h1><p>Answers about orders, bookings, offers and payments</p></div></div>
+ 
+<section style="padding-top:26px"><div class="wrap fm">
+  <h3 style="margin-bottom:2px">My recent orders</h3>
+  <p class="sm" style="margin:0 0 4px">Tap an order to open its bill.</p>
+  <div id="ol"></div>
+ 
+  <h3 style="margin:30px 0 8px">Frequently asked questions</h3>
+  <input id="fq" type="search" placeholder="Search help (for example: coupon, delivery)" aria-label="Search help" autocomplete="off">
+  <div id="faq"></div>
+ 
+  <div class="box" style="margin-top:26px;text-align:center">
+    <p>Could not find your answer?</p>
+    <div class="bt" style="justify-content:center;margin-top:10px">
+      <a class="btn" id="hCall" href="#">Call us</a>
+      <a class="btn wa" id="hWa" href="#" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="btn gh" href="contact.html">Send a message</a>
+    </div>
+  </div>
+</div></section>
+ 
+<noscript><p style="text-align:center;padding:20px">Please enable JavaScript to use this page.</p></noscript>
+<script src="common.js"></script>
+<script>
+$("hCall").href="tel:"+PHONE;$("hWa").href="https://wa.me/"+WA;
+var FAQ=[
+["How do I place an order?","Open the Menu page, tap Add to Cart on any dish, then open the cart icon at the top and choose Checkout. Enter your delivery details and tap Place Order."],
+["How do I use a coupon?","Tap a code on the Home page to copy it, open your cart, paste the code in the coupon box and tap Apply. Available codes: WELCOME20, FEAST150 (orders above ₹800) and SUNDAY25 (Sundays only)."],
+["What are the Sunday special offers?","Every Sunday you get 25% off your order with the code SUNDAY25, plus special family combos for four people on the Menu page."],
+["What is the delivery charge?","Delivery is free for orders of ₹500 or more. A charge of ₹40 applies to smaller orders."],
+["How long does delivery take?","Usually 30 to 40 minutes. It can take a little longer during busy hours."],
+["How do I book a table?","Open the Booking page, enter your name, mobile number, date, time and number of guests, then tap Book a Table. You will see your booking details right away."],
+["How can I see or cancel my booking?","On the Booking page, your bookings are listed under My bookings. Tap one to see all its details, or tap Cancel to remove it."],
+["How do I get my bill or booking slip?","After you place an order or book a table, the bill or slip is shown on the screen. You can print it or save it as a PDF. Past orders and bookings can be opened again from the Help and Booking pages."],
+["Can the slip be sent on WhatsApp?","Yes, this is optional. Use the Send on WhatsApp button under the slip. It opens a WhatsApp chat with the mobile number that was entered for the order or booking, with the slip text ready to send."],
+["Which payment methods are accepted?","Cash on delivery, UPI and card."],
+["Are veg and non-veg dishes marked?","Yes. Every dish has a green (veg) or red (non-veg) symbol, and the Menu page has a Veg and Non-veg filter."],
+["My order is late or incorrect. What should I do?","Please call us or message us on WhatsApp using the buttons below. Messages and calls from this page go to the restaurant at +91 88264 17093 and we will fix it right away."]
+];
+function drawFaq(){
+  var q=$("fq").value.trim().toLowerCase();
+  var r=FAQ.filter(function(f){return !q||(f[0]+" "+f[1]).toLowerCase().indexOf(q)>=0});
+  $("faq").innerHTML=r.length?r.map(function(f){return '<details><summary>'+f[0]+'</summary><p>'+f[1]+'</p></details>'}).join(""):'<p class="sm" style="margin-top:10px">No results. Please call or message us for help.</p>';
+}
+function orderStatus(ts){var m=(Date.now()-ts)/60000;return m<10?"Preparing":m<30?"On the way":"Delivered"}
+function openOrder(i){var o=store.get("fr2_orders",[])[i];if(o)showOrder(o,false)}
+function drawOrders(){
+  var o=store.get("fr2_orders",[]);
+  $("ol").innerHTML=o.length?o.slice(0,5).map(function(x,i){
+    return '<div class="li" role="button" tabindex="0" onclick="openOrder('+i+')" onkeydown="if(event.key===\'Enter\')openOrder('+i+')"><div><b>'+esc(x.id)+'</b> · ₹'+x.total+'<small>'+esc(x.lines.map(function(l){return l.n+" x"+l.q}).join(", "))+'</small><small>'+esc(fdt(x.ts))+'</small></div><span class="tagx">'+orderStatus(x.ts)+'</span></div>';
+  }).join(""):'<p class="sm">You have not placed any orders yet. <a href="menu.html" style="color:var(--acc);font-weight:700">Browse the menu</a></p>';
+}
+$("fq").oninput=drawFaq;
+drawFaq();drawOrders();
+</script>
+</body>
+</html>
+ 

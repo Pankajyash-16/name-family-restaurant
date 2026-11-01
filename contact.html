@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contact – Family Restaurant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+ 
+<div class="pg"><div class="wrap"><h1>Contact Us</h1><p>Questions, feedback or party orders? We would love to hear from you</p></div></div>
+ 
+<section style="padding-top:26px"><div class="wrap">
+  <div class="trio">
+    <div class="box"><span>📞</span><b>Call us</b><br><a id="kCall" href="#">Call</a></div>
+    <div class="box"><span>💬</span><b>WhatsApp</b><br><a id="kWa" href="#" target="_blank" rel="noopener">Chat on WhatsApp</a></div>
+    <div class="box"><span>✉️</span><b>Email</b><br><a id="kMail" href="#">Email</a></div>
+    <div class="box"><span>📍</span><b>Visit us</b><br><span id="kAddr" style="font-size:.92rem;display:inline"></span><br><a id="kMap" href="#" target="_blank" rel="noopener">Open in Maps</a></div>
+  </div>
+ 
+  <form class="box fm" id="cf" novalidate>
+    <h3 style="margin-bottom:12px">Send us a message</h3>
+    <div class="fg">
+      <div><label for="mn">Your name</label><input id="mn" autocomplete="name"></div>
+      <div><label for="mp">Mobile number (optional)</label><input id="mp" type="tel" inputmode="numeric" maxlength="11" autocomplete="tel"></div>
+      <div class="full"><label for="ms">Subject</label>
+        <select id="ms"><option>General question</option><option>Feedback</option><option>Complaint</option><option>Party or bulk order</option></select></div>
+      <div class="full"><label for="mm">Message</label><textarea id="mm" rows="4"></textarea></div>
+    </div>
+    <div class="msg" id="cm"></div>
+    <div class="bt">
+      <button class="btn" type="submit" style="flex:1">Send by Email</button>
+      <button class="btn wa" type="button" id="sendWa" style="flex:1">Send on WhatsApp</button>
+    </div>
+  </form>
+  <p class="sub" style="margin-top:20px">Open Mon–Sat 11 AM – 11 PM · Sunday 10 AM – 11:30 PM</p>
+</div></section>
+ 
+<noscript><p style="text-align:center;padding:20px">Please enable JavaScript to use this form.</p></noscript>
+<script src="common.js"></script>
+<script>
+$("kCall").href="tel:"+PHONE;$("kCall").textContent=PHONE_SHOW;
+$("kWa").href="https://wa.me/"+WA;
+$("kMail").href="mailto:"+EMAIL;$("kMail").textContent=EMAIL;
+$("kAddr").textContent=ADDRESS;$("kMap").href=MAPS;
+ 
+function readForm(){
+  var n=$("mn").value.trim(),p=$("mp").value.trim(),m=$("mm").value.trim();
+  if(!n){setMsg("cm","Please enter your name.","bad");return null}
+  if(p&&!okPhone(p)){setMsg("cm","Please enter a valid 10-digit mobile number or leave it empty.","bad");return null}
+  if(m.length<10){setMsg("cm","Please write a message of at least 10 characters.","bad");return null}
+  setMsg("cm","","");
+  return {n:n,p:p,s:$("ms").value,m:m};
+}
+function body(f){return "Name: "+f.n+(f.p?"\nMobile: "+f.p:"")+"\nSubject: "+f.s+"\n\n"+f.m}
+$("cf").onsubmit=function(e){
+  e.preventDefault();var f=readForm();if(!f)return;
+  window.location.href="mailto:"+EMAIL+"?subject="+encodeURIComponent(NAME+" – "+f.s)+"&body="+encodeURIComponent(body(f));
+  toast("Opening your email app...");
+};
+$("sendWa").onclick=function(){
+  var f=readForm();if(!f)return;
+  window.open(waLink("Hello "+NAME+",\n"+body(f)),"_blank");
+};
+</script>
+</body>
+</html>
+ 

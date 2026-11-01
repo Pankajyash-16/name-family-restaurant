@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Table Booking – Family Restaurant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+ 
+<div class="pg"><div class="wrap"><h1>Table Booking</h1><p>Reserve a table for your family, friends or special occasion</p></div></div>
+ 
+<section style="padding-top:26px"><div class="wrap">
+  <form class="box fm" id="bf" novalidate>
+    <div class="fg">
+      <div><label for="bn">Full name</label><input id="bn" autocomplete="name" placeholder="Your name"></div>
+      <div><label for="bp">Mobile number</label><input id="bp" type="tel" inputmode="numeric" maxlength="11" placeholder="10-digit number" autocomplete="tel"></div>
+      <div><label for="bd">Date</label><input id="bd" type="date"></div>
+      <div><label for="bt">Time</label>
+        <select id="bt"><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>7:00 PM</option><option>8:00 PM</option><option>9:00 PM</option><option>10:00 PM</option></select></div>
+      <div><label for="bg">Number of guests (1–20)</label><input id="bg" type="number" min="1" max="20" value="2" inputmode="numeric"></div>
+      <div><label for="bo">Occasion</label>
+        <select id="bo"><option>Family dinner</option><option>Birthday</option><option>Anniversary</option><option>Friends get-together</option><option>Business dinner</option></select></div>
+      <div class="full"><label for="bs">Special requests (optional)</label><textarea id="bs" rows="3" placeholder="For example: window seat, birthday cake, high chair"></textarea></div>
+    </div>
+    <div class="msg" id="bm"></div>
+    <button class="btn" type="submit" style="width:100%">Book a Table</button>
+  </form>
+ 
+  <div class="lst">
+    <h3 style="margin-bottom:2px">My bookings</h3>
+    <p class="sm" style="margin:0 0 4px">Tap a booking to open its slip.</p>
+    <div id="bl"></div>
+  </div>
+</div></section>
+ 
+<noscript><p style="text-align:center;padding:20px">Please enable JavaScript to book a table.</p></noscript>
+<script src="common.js"></script>
+<script>
+var MAXPERSLOT=5;
+function today(){var d=new Date(),m=d.getMonth()+1,x=d.getDate();return d.getFullYear()+"-"+(m<10?"0":"")+m+"-"+(x<10?"0":"")+x}
+document.getElementById("bd").min=today();
+ 
+function bookingSlip(b){
+  return '<div class="slip">'+slipHead("TABLE RESERVATION SLIP")+
+  sr("Booking ID",b.id)+'<div class="sr"><span>Status</span><b><span class="sp-ok">CONFIRMED</span></b></div>'+sr("Table no",b.table)+sr("Guest name",b.name)+sr("Mobile","+91 "+b.phone)+
+  sr("Date",niceDate(b.date))+sr("Time",b.time)+sr("Guests",String(b.guests))+sr("Occasion",b.occ)+sr("Special requests",b.note||"None")+sr("Booked on",fdt(b.ts))+
+  slipFoot("Please show this slip at the entrance and arrive 10 minutes early. To change or cancel, call us.")+'</div>';
+}
+function bookingText(b){
+  return "*"+NAME+"*\nTABLE RESERVATION CONFIRMED\nBooking ID: "+b.id+"\nTable no: "+b.table+"\nGuest name: "+b.name+"\nDate: "+niceDate(b.date)+"\nTime: "+b.time+"\nGuests: "+b.guests+"\nOccasion: "+b.occ+"\nSpecial requests: "+(b.note||"None")+"\n\nPlease show this message at the entrance and arrive 10 minutes early.\n"+NAME+", "+ADDRESS+"\nPhone: "+PHONE_SHOW;
+}
+function openBooking(i,fresh){
+  var b=store.get("fr2_book",[])[i];if(!b)return;
+  showSlip(fresh?"✅":"📋",fresh?"Table booked successfully":"Booking slip",
+    fresh?"Your table is confirmed. Print the slip or, if you like, send it to the guest's WhatsApp.":"Here is the slip for this booking.",
+    bookingSlip(b),{href:waTo(b.phone,bookingText(b)),label:"Send to +91 "+b.phone+" on WhatsApp (optional)"});
+}
+function showList(){
+  var b=store.get("fr2_book",[]);
+  document.getElementById("bl").innerHTML=b.length?b.map(function(x,i){
+    return '<div class="li" role="button" tabindex="0" onclick="openBooking('+i+')" onkeydown="if(event.key===\'Enter\')openBooking('+i+')"><div><b>'+esc(x.id)+'</b> · '+esc(x.name)+'<small>'+esc(niceDate(x.date))+' at '+esc(x.time)+' · '+x.guests+' guests · '+esc(x.table)+'</small><small>'+esc(x.occ)+'</small></div><div class="rt"><span class="tagx">Confirmed</span><button onclick="event.stopPropagation();cancelBooking('+i+')">Cancel</button></div></div>';
+  }).join(""):'<p class="sm" style="margin-top:8px">You have no bookings yet.</p>';
+}
+function cancelBooking(i){
+  var b=store.get("fr2_book",[]);
+  if(!b[i]||!confirm("Cancel booking "+b[i].id+"?"))return;
+  b.splice(i,1);store.set("fr2_book",b);showList();toast("Booking cancelled");
+}
+document.getElementById("bf").onsubmit=function(e){
+  e.preventDefault();
+  var name=$("bn").value.trim(),ph=$("bp").value.trim(),date=$("bd").value,time=$("bt").value,g=parseInt($("bg").value,10);
+  if(!name)return setMsg("bm","Please enter your name.","bad");
+  if(!okPhone(ph))return setMsg("bm","Please enter a valid 10-digit mobile number.","bad");
+  if(!date)return setMsg("bm","Please choose a date.","bad");
+  if(date<today())return setMsg("bm","You cannot book a table for a past date.","bad");
+  if(!g||g<1||g>20)return setMsg("bm","Guests must be between 1 and 20.","bad");
+  var b=store.get("fr2_book",[]);
+  var used=b.filter(function(x){return x.date===date&&x.time===time}).map(function(x){return x.table});
+  var t=0;for(var n=1;n<=MAXPERSLOT;n++){if(used.indexOf("T-"+n)<0){t=n;break}}
+  if(!t)return setMsg("bm","All tables are booked for this time slot. Please choose another time.","bad");
+  b.unshift({id:newId("TB"),table:"T-"+t,name:name,phone:digits(ph),date:date,time:time,guests:g,occ:$("bo").value,note:$("bs").value.trim(),ts:Date.now()});
+  store.set("fr2_book",b);
+  $("bf").reset();$("bg").value=2;setMsg("bm","","");showList();openBooking(0,true);
+};
+showList();
+</script>
+</body>
+</html>
+ 
