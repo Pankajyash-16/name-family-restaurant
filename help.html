@@ -6,7 +6,7 @@
 <title>Help – Family Restaurant</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -44,6 +44,8 @@ var FAQ=[
 ["How long does delivery take?","Usually 30 to 40 minutes. It can take a little longer during busy hours."],
 ["How do I book a table?","Open the Booking page, enter your name, mobile number, date, time and number of guests, then tap Book a Table. You will see your booking details right away."],
 ["How can I see or cancel my booking?","On the Booking page, your bookings are listed under My bookings. Tap one to see all its details, or tap Cancel to remove it."],
+["What are Delivery, Pickup and Dine-in?","In your cart, choose how you want your order. Delivery needs an address and may have a delivery charge. Pickup and Dine-in have no delivery charge."],
+["How do favourites work?","Tap the heart on any dish to save it. Open the Menu page and choose the Favourites tab to see all your saved dishes."],
 ["How do I get my bill or booking slip?","After you place an order or book a table, the bill or slip is shown on the screen. You can print it or save it as a PDF. Past orders and bookings can be opened again from the Help and Booking pages."],
 ["Can the slip be sent on WhatsApp?","Yes, this is optional. Use the Send on WhatsApp button under the slip. It opens a WhatsApp chat with the mobile number that was entered for the order or booking, with the slip text ready to send."],
 ["Which payment methods are accepted?","Cash on delivery, UPI and card."],
@@ -55,13 +57,23 @@ function drawFaq(){
   var r=FAQ.filter(function(f){return !q||(f[0]+" "+f[1]).toLowerCase().indexOf(q)>=0});
   $("faq").innerHTML=r.length?r.map(function(f){return '<details><summary>'+f[0]+'</summary><p>'+f[1]+'</p></details>'}).join(""):'<p class="sm" style="margin-top:10px">No results. Please call or message us for help.</p>';
 }
-function orderStatus(ts){var m=(Date.now()-ts)/60000;return m<10?"Preparing":m<30?"On the way":"Delivered"}
 function openOrder(i){var o=store.get("fr2_orders",[])[i];if(o)showOrder(o,false)}
+function trackInfo(x){
+  var t=x.type||"Delivery",m=(Date.now()-x.ts)/60000,s=m<10?0:m<30?1:2;
+  var L=t==="Pickup"?["Preparing","Ready for pickup","Collected"]:t==="Dine-in"?["Preparing","Served","Completed"]:["Preparing","On the way","Delivered"];
+  return {s:s,L:L};
+}
 function drawOrders(){
   var o=store.get("fr2_orders",[]);
   $("ol").innerHTML=o.length?o.slice(0,5).map(function(x,i){
-    return '<div class="li" role="button" tabindex="0" onclick="openOrder('+i+')" onkeydown="if(event.key===\'Enter\')openOrder('+i+')"><div><b>'+esc(x.id)+'</b> · ₹'+x.total+'<small>'+esc(x.lines.map(function(l){return l.n+" x"+l.q}).join(", "))+'</small><small>'+esc(fdt(x.ts))+'</small></div><span class="tagx">'+orderStatus(x.ts)+'</span></div>';
+    var k=trackInfo(x);
+    return '<div class="li" role="button" tabindex="0" onclick="openOrder('+i+')" onkeydown="if(event.key===\'Enter\')openOrder('+i+')"><div style="flex:1"><b>'+esc(x.id)+'</b> · ₹'+x.total+' · '+esc(x.type||"Delivery")+'<small>'+esc(x.lines.map(function(l){return l.n+" x"+l.q}).join(", "))+'</small><small>'+esc(fdt(x.ts))+'</small><div class="trk">'+[0,1,2].map(function(n){return '<i class="'+(n<=k.s?"on":"")+'"></i>'}).join("")+'</div><small><b>'+k.L[k.s]+'</b></small></div><div class="rt"><button class="ro" onclick="event.stopPropagation();reorder('+i+')">Order again</button></div></div>';
   }).join(""):'<p class="sm">You have not placed any orders yet. <a href="menu.html" style="color:var(--acc);font-weight:700">Browse the menu</a></p>';
+}
+function reorder(i){
+  var o=store.get("fr2_orders",[])[i];if(!o)return;
+  o.lines.forEach(function(l){MENU.forEach(function(m,k){if(m.n===l.n)cart[k]=(cart[k]||0)+l.q})});
+  refresh();toggleCart(true);toast("Items added to your cart");
 }
 $("fq").oninput=drawFaq;
 drawFaq();drawOrders();

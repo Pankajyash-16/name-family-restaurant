@@ -6,7 +6,7 @@
 <title>Contact – Family Restaurant</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -36,6 +36,17 @@
       <button class="btn wa" type="button" id="sendWa" style="flex:1">Send on WhatsApp</button>
     </div>
   </form>
+  
+  <form class="box fm" id="rf" novalidate style="margin-top:22px">
+    <h3 style="margin-bottom:12px">Rate your experience</h3>
+    <div class="fg">
+      <div><label for="rn">Your name</label><input id="rn" autocomplete="name"></div>
+      <div><label>Your rating</label><div class="starpick" id="sp"><button type="button" data-s="1" aria-label="1 star">★</button><button type="button" data-s="2" aria-label="2 stars">★</button><button type="button" data-s="3" aria-label="3 stars">★</button><button type="button" data-s="4" aria-label="4 stars">★</button><button type="button" data-s="5" aria-label="5 stars">★</button></div></div>
+      <div class="full"><label for="rt2">Your review</label><textarea id="rt2" rows="3"></textarea></div>
+    </div>
+    <div class="msg" id="rm"></div>
+    <button class="btn" type="submit" style="width:100%">Post Review</button>
+  </form>
   <p class="sub" style="margin-top:20px">Open Mon–Sat 11 AM – 11 PM · Sunday 10 AM – 11:30 PM</p>
 </div></section>
  
@@ -64,6 +75,22 @@ $("cf").onsubmit=function(e){
 $("sendWa").onclick=function(){
   var f=readForm();if(!f)return;
   window.open(waLink("Hello "+NAME+",\n"+body(f)),"_blank");
+};
+ 
+var rate=0;
+document.querySelectorAll("#sp button").forEach(function(b){b.onclick=function(){
+  rate=+b.getAttribute("data-s");
+  document.querySelectorAll("#sp button").forEach(function(x){x.classList.toggle("on",+x.getAttribute("data-s")<=rate)});
+}});
+$("rf").onsubmit=function(e){
+  e.preventDefault();
+  var n=$("rn").value.trim(),tx=$("rt2").value.trim();
+  if(!n)return setMsg("rm","Please enter your name.","bad");
+  if(!rate)return setMsg("rm","Please choose a star rating.","bad");
+  if(tx.length<10)return setMsg("rm","Please write at least 10 characters.","bad");
+  var all=store.get("fr2_reviews",[]);all.unshift({n:n,r:rate,t:tx,ts:Date.now()});store.set("fr2_reviews",all.slice(0,12));
+  $("rf").reset();rate=0;document.querySelectorAll("#sp button").forEach(function(x){x.classList.remove("on")});
+  setMsg("rm","","");confetti();toast("Thanks! Your review is now on the home page.");
 };
 </script>
 </body>

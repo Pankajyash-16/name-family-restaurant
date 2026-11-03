@@ -77,6 +77,7 @@ function niceDate(d){try{return new Date(d+"T00:00:00").toLocaleDateString("en-I
 function isSunday(){return new Date().getDay()===0}
  
 var cart=store.get("fr_cart",{}),coupon=store.get("fr_coupon",null);
+var favs=store.get("fr_favs",[]),otype=store.get("fr_otype","Delivery");
  
 /* images */
 var IMGQ={"veg-family-feast-serves-4":"indian,thali","non-veg-family-feast-serves-4":"tandoori,chicken","kids-fun-meal":"kids,meal","family-dessert-platter":"dessert,platter","family-thali-serves-4":"indian,thali","biryani-family-pack-serves-4":"chicken,biryani","veg-biryani-family-pack-serves-4":"veg,biryani","pizza-party-pack":"pizza","chinese-family-combo-serves-4":"chinese,food","mixed-grill-platter-serves-4":"mixed,grill","paneer-butter-masala-family-pack":"paneer,butter,masala","veg-biryani":"veg,biryani","veg-maki-roll":"sushi,roll","hummus-platter":"hummus","veggie-burger":"veggie,burger","loaded-fries":"fries","fresh-lime-soda":"lemonade","masala-chai":"chai,tea","veg-momos":"momos","veg-tacos":"tacos","veg-hakka-noodles":"hakka,noodles","veg-spring-rolls":"spring,rolls","veg-tom-yum-soup":"tom,yum,soup"};
@@ -89,14 +90,19 @@ function imgFail(el){var t=+(el.getAttribute("data-t")||0)+1;el.setAttribute("da
 /* end images */
  
 /* cart logic */
-function chg(i,d){cart[i]=(cart[i]||0)+d;if(cart[i]<=0)delete cart[i];if(d>0)toast(MENU[i].n+" added to cart");refresh()}
+function chg(i,d){cart[i]=(cart[i]||0)+d;if(cart[i]<=0)delete cart[i];if(d>0){toast(MENU[i].n+" added to cart");var cbn=$("cbtn");if(cbn){cbn.classList.remove("bump");void cbn.offsetWidth;cbn.classList.add("bump")}}refresh()}
+function isFav(i){return favs.indexOf(i)>=0}
+function toggleFav(i){var k=favs.indexOf(i);if(k>=0)favs.splice(k,1);else favs.push(i);store.set("fr_favs",favs);toast(k>=0?"Removed from favourites":"Saved to favourites");refresh();if(typeof onFav==="function")onFav()}
+function setOtype(t){otype=t;store.set("fr_otype",t);refresh()}
+function eta(o){var t=o.type||"Delivery";return t==="Pickup"?"Your order will be ready for pickup in 20-25 minutes.":t==="Dine-in"?"Your order will be served at your table shortly.":"Estimated delivery: 30-40 minutes."}
+function surprise(){var ks=Object.keys(COUPONS).filter(function(k){return COUPONS[k].day===undefined||isSunday()}),k=ks[Math.floor(Math.random()*ks.length)];if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(k).catch(function(){});if($("cin"))$("cin").value=k;confetti();toast("You got "+k+"! Code copied. Apply it in your cart.")}
 function subtotal(){var s=0;for(var i in cart)s+=MENU[i].p*cart[i];return s}
 function couponOk(c){var x=COUPONS[c];return !!x&&subtotal()>=x.min&&(x.day===undefined||x.day===new Date().getDay())}
 function discount(){if(!coupon||!couponOk(coupon))return 0;var c=COUPONS[coupon],s=subtotal();return Math.min(s,c.t==="pct"?Math.round(s*c.v/100):c.v)}
-function delivery(){var s=subtotal();return s&&s<500?40:0}
+function delivery(){if(otype!=="Delivery")return 0;var s=subtotal();return s&&s<500?40:0}
 function total(){return subtotal()-discount()+delivery()}
 function ctl(i){var q=cart[i]||0;return q?'<div class="qt"><button onclick="chg('+i+',-1)" aria-label="Decrease quantity">−</button><b>'+q+'</b><button onclick="chg('+i+',1)" aria-label="Increase quantity">+</button></div>':'<button class="add" onclick="chg('+i+',1)">Add to Cart</button>'}
-function card(i){var m=MENU[i];return '<article class="it"><div class="pic c-'+m.k+'"><span class="em">'+m.e+'</span>'+pimg(i)+(m.s?'<span class="bs sun">Sunday Special</span>':m.b?'<span class="bs">Bestseller</span>':'')+'</div><h3><span class="tg '+(m.v?'vg':'nv')+'" title="'+(m.v?'Veg':'Non-veg')+'"></span>'+m.n+'</h3><p>'+m.d+'</p><div class="rw"><span class="pr">₹'+m.p+'</span><span data-ctl="'+i+'">'+ctl(i)+'</span></div></article>'}
+function card(i){var m=MENU[i];return '<article class="it"><div class="pic c-'+m.k+'"><span class="em">'+m.e+'</span>'+pimg(i)+'<button class="fav" data-fav="'+i+'" onclick="toggleFav('+i+')" aria-label="Save to favourites">♡</button>'+(m.s?'<span class="bs sun">Sunday Special</span>':m.b?'<span class="bs">Bestseller</span>':'')+'</div><h3><span class="tg '+(m.v?'vg':'nv')+'" title="'+(m.v?'Veg':'Non-veg')+'"></span>'+m.n+'</h3><p>'+m.d+'</p><div class="rw"><span class="pr">₹'+m.p+'</span><span data-ctl="'+i+'">'+ctl(i)+'</span></div></article>'}
  
 function refresh(){
  var ids=Object.keys(cart),n=0;ids.forEach(function(i){n+=cart[i]});
@@ -104,9 +110,11 @@ function refresh(){
  store.set("fr_cart",cart);store.set("fr_coupon",coupon);
  $("cnt").textContent=n;
  $("cl").innerHTML=ids.length?ids.map(function(i){return '<div class="ci"><span class="n">'+MENU[i].e+' '+MENU[i].n+'</span><div class="qt"><button onclick="chg('+i+',-1)" aria-label="Decrease quantity">−</button><b>'+cart[i]+'</b><button onclick="chg('+i+',1)" aria-label="Increase quantity">+</button></div><b>₹'+MENU[i].p*cart[i]+'</b></div>'}).join(""):'<p class="sm" style="margin-top:20px">Your cart is empty. <a href="menu.html" style="color:var(--acc);font-weight:700">Browse the menu</a></p>';
- $("sm").innerHTML='<div><span>Subtotal</span><span>₹'+subtotal()+'</span></div><div><span>Discount'+(coupon?' ('+coupon+')':'')+'</span><span>− ₹'+discount()+'</span></div><div><span>Delivery</span><span>'+(delivery()?'₹'+delivery():'Free')+'</span></div><div class="tt"><span>Total</span><span>₹'+total()+'</span></div>';
+ $("sm").innerHTML='<div><span>Subtotal</span><span>₹'+subtotal()+'</span></div><div><span>Discount'+(coupon?' ('+coupon+')':'')+'</span><span>− ₹'+discount()+'</span></div><div><span>Delivery</span><span>'+(delivery()?'₹'+delivery():(otype==="Delivery"?'Free':'None'))+'</span></div><div class="tt"><span>Total</span><span>₹'+total()+'</span></div>';
  var sb=subtotal(),fd=$("fdp");
- fd.innerHTML=!sb?"":sb>=500?"🎉 You get free delivery on this order!":'Add ₹'+(500-sb)+' more for free delivery<div class="b2"><i style="width:'+Math.round(sb/5)+'%"></i></div>';
+ fd.innerHTML=!sb?"":otype!=="Delivery"?"No delivery charge for "+otype.toLowerCase()+" orders.":sb>=500?"🎉 You get free delivery on this order!":'Add ₹'+(500-sb)+' more for free delivery<div class="b2"><i style="width:'+Math.round(sb/5)+'%"></i></div>';
+ $("otp").innerHTML=["Delivery","Pickup","Dine-in"].map(function(t){return '<button class="'+(t===otype?'on':'')+'" onclick="setOtype(\''+t+'\')">'+(t==="Delivery"?"🛵 ":t==="Pickup"?"🛍️ ":"🍽️ ")+t+'</button>'}).join("");
+ document.querySelectorAll("[data-fav]").forEach(function(e){var on=isFav(+e.getAttribute("data-fav"));e.classList.toggle("on",on);e.textContent=on?"♥":"♡"});
  document.querySelectorAll("[data-ctl]").forEach(function(e){e.innerHTML=ctl(e.getAttribute("data-ctl"))});
 }
 function applyCoupon(code){
@@ -116,7 +124,7 @@ function applyCoupon(code){
  if(subtotal()<COUPONS[c].min)return setMsg("cmsg","This coupon needs a minimum order of ₹"+COUPONS[c].min+".","bad");
  coupon=c;refresh();setMsg("cmsg","Coupon applied successfully.","ok")}
 function toggleCart(o){$("dr").classList.toggle("open",o);$("sh").classList.toggle("open",o)}
-function openCheckout(){if(!subtotal())return setMsg("cmsg","Add something to your cart first.","bad");toggleCart(false);$("ck").classList.add("open")}
+function openCheckout(){if(!subtotal())return setMsg("cmsg","Add something to your cart first.","bad");toggleCart(false);$("caL").textContent=otype==="Delivery"?"Delivery address":otype==="Pickup"?"Note for the kitchen (optional)":"Table number or note (optional)";$("ck").classList.add("open")}
 function closeModal(id){$(id).classList.remove("open")}
 function showSlip(icon,title,text,html,link){
  $("dnI").textContent=icon;$("dnT").textContent=title;$("dnP").textContent=text;
@@ -135,26 +143,27 @@ function slipFoot(t){return '<div class="sp-f">'+t+'<br>'+PHONE_SHOW+' · '+EMAI
  
 function orderSlip(o){
  var rows=o.lines.map(function(l){return '<tr><td>'+esc(l.n)+'</td><td>'+l.q+'</td><td>'+l.p+'</td><td>'+l.p*l.q+'</td></tr>'}).join("");
- return '<div class="slip">'+slipHead("ORDER BILL")+sr("Bill no",o.id)+sr("Date",fdt(o.ts))+sr("Customer",o.name)+sr("Mobile","+91 "+o.phone)+sr("Address",o.address)+sr("Payment",o.pay)+
+ return '<div class="slip">'+slipHead("ORDER BILL")+sr("Bill no",o.id)+sr("Date",fdt(o.ts))+sr("Customer",o.name)+sr("Mobile","+91 "+o.phone)+sr("Order type",o.type||"Delivery")+sr((o.type||"Delivery")==="Delivery"?"Address":"Note",o.address)+sr("Payment",o.pay)+
  '<table><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amt</th></tr>'+rows+'</table>'+
  '<div class="sp-tot">'+sr("Subtotal","₹"+o.sub)+(o.disc?sr("Discount ("+o.coupon+")","− ₹"+o.disc):"")+sr("Delivery",o.del?"₹"+o.del:"Free")+'<div class="sr sp-g"><span>TOTAL</span><b>₹'+o.total+'</b></div></div>'+
- slipFoot("Thank you for ordering! Estimated delivery: 30–40 minutes.")+'</div>'}
+ slipFoot("Thank you for ordering! "+eta(o))+'</div>'}
 function orderText(o){
- var t="*"+NAME+"*\nORDER BILL\nBill no: "+o.id+"\nDate: "+fdt(o.ts)+"\nCustomer: "+o.name+"\nMobile: "+o.phone+"\nAddress: "+o.address+"\n\n";
+ var t="*"+NAME+"*\nORDER BILL\nBill no: "+o.id+"\nDate: "+fdt(o.ts)+"\nCustomer: "+o.name+"\nMobile: "+o.phone+"\nOrder type: "+(o.type||"Delivery")+"\nAddress: "+o.address+"\n\n";
  o.lines.forEach(function(l){t+=l.n+" x"+l.q+" = ₹"+l.p*l.q+"\n"});
- t+="\nSubtotal: ₹"+o.sub+(o.disc?"\nDiscount ("+o.coupon+"): -₹"+o.disc:"")+"\nDelivery: "+(o.del?"₹"+o.del:"Free")+"\n*TOTAL: ₹"+o.total+"*\nPayment: "+o.pay+"\n\nThank you for ordering! Estimated delivery: 30-40 minutes.\n"+NAME+", "+ADDRESS+"\nPhone: "+PHONE_SHOW;
+ t+="\nSubtotal: ₹"+o.sub+(o.disc?"\nDiscount ("+o.coupon+"): -₹"+o.disc:"")+"\nDelivery: "+(o.del?"₹"+o.del:"Free")+"\n*TOTAL: ₹"+o.total+"*\nPayment: "+o.pay+"\n\nThank you for ordering! "+eta(o)+"\n"+NAME+", "+ADDRESS+"\nPhone: "+PHONE_SHOW;
  return t}
-function showOrder(o,fresh){
+function confetti(){try{if(document.documentElement.classList.contains("lite")||(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches))return;var w=document.createElement("div"),cl=["#c8ff3d","#f6dc8a","#ff7a5c","#8fd6ff","#ff8fb8","#0f5c4d"],h="";w.className="cf";for(var i=0;i<26;i++){h+='<i style="left:'+Math.round(Math.random()*100)+'%;background:'+cl[i%cl.length]+';animation-delay:'+(Math.random()*.4).toFixed(2)+'s;transform:rotate('+Math.round(Math.random()*360)+'deg)"></i>'}w.innerHTML=h;document.body.appendChild(w);setTimeout(function(){if(w.parentNode)w.parentNode.removeChild(w)},1900)}catch(e){}}
+function showOrder(o,fresh){if(fresh)confetti();
  showSlip(fresh?"🎉":"🧾",fresh?"Order placed successfully":"Order bill",
   fresh?"Your bill is shown below. You can print it or, if you like, send it to the customer's WhatsApp.":"Here is the bill for this order.",
   orderSlip(o),{href:waTo(o.phone,orderText(o)),label:"Send to +91 "+o.phone+" on WhatsApp (optional)"})}
 function placeOrder(e){
  e.preventDefault();
  var nm=$("cn").value.trim(),ad=$("ca").value.trim(),ph=$("cp").value.trim();
- if(!nm||!ad)return setMsg("ckMsg","Please enter your name and delivery address.","bad");
+ if(!nm||(otype==="Delivery"&&!ad))return setMsg("ckMsg",otype==="Delivery"?"Please enter your name and delivery address.":"Please enter your name.","bad");
  if(!okPhone(ph))return setMsg("ckMsg","Please enter a valid 10-digit mobile number.","bad");
  var lines=Object.keys(cart).map(function(i){return {n:MENU[i].n,q:cart[i],p:MENU[i].p}});
- var o={id:newId("FR"),name:nm,phone:digits(ph),address:ad,lines:lines,sub:subtotal(),disc:discount(),coupon:coupon,del:delivery(),total:total(),pay:$("cpay").value,ts:Date.now()};
+ var o={id:newId("FR"),name:nm,phone:digits(ph),address:ad||"-",type:otype,lines:lines,sub:subtotal(),disc:discount(),coupon:coupon,del:delivery(),total:total(),pay:$("cpay").value,ts:Date.now()};
  var all=store.get("fr2_orders",[]);all.unshift(o);store.set("fr2_orders",all.slice(0,20));
  cart={};coupon=null;refresh();$("ckForm").reset();setMsg("ckMsg","","");closeModal("ck");showOrder(o,true);
 }
@@ -166,10 +175,10 @@ function placeOrder(e){
  var nav=pages.map(function(p){return '<a href="'+p[0]+'"'+(cur===p[0]?' class="on"':'')+'>'+p[1]+'</a>'}).join("");
  document.body.insertAdjacentHTML("afterbegin",'<div class="top"><div class="wrap"><span>🔥 Sunday Special: 25% OFF with code <b>SUNDAY25</b></span><span class="tr"><a href="tel:'+PHONE+'">📞 '+PHONE_SHOW+'</a><span>📍 '+ADDRESS+'</span></span></div></div><header class="hd"><div class="wrap nav"><a class="logo" href="index.html"><i class="lg">🍽️</i><span>Family<small>Restaurant</small></span></a><nav id="nv">'+nav+'</nav><div class="nr"><a class="btn cta" href="booking.html">Book a Table</a><a class="ib" href="tel:'+PHONE+'" aria-label="Call us">📞</a><button class="cb" id="cbtn" aria-label="Open cart">🛒<i id="cnt">0</i></button><button class="bg" id="bgr" aria-label="Open navigation menu">☰</button></div></div></header>');
  document.body.insertAdjacentHTML("beforeend",
- '<footer class="ft"><div class="wrap"><div class="fgrid"><div><a class="logo" href="index.html"><i class="lg">🍽️</i><span>Family<small>Restaurant</small></span></a><p>Delicious world cuisine for the whole family. Fresh food, warm service and a table for everyone.</p><div class="soc"><a href="tel:'+PHONE+'" aria-label="Call us">📞</a><a href="https://wa.me/'+WA+'" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a><a href="mailto:'+EMAIL+'" aria-label="Email">✉️</a><a href="'+MAPS+'" target="_blank" rel="noopener" aria-label="Location">📍</a></div></div><div><h3>Quick links</h3>'+nav+'</div><div><h3>Contact</h3><span>📍 '+ADDRESS+'</span><a href="tel:'+PHONE+'">📞 '+PHONE_SHOW+'</a><a href="https://wa.me/'+WA+'" target="_blank" rel="noopener">💬 Chat on WhatsApp</a><a href="mailto:'+EMAIL+'">✉️ '+EMAIL+'</a></div><div class="hrs"><h3>Opening hours</h3><div><span>Mon – Sat</span><span>11 AM – 11 PM</span></div><div class="sunr"><span>Sunday ⭐</span><span>10 AM – 11:30 PM</span></div><div><span>Sunday offers</span><span>25% OFF</span></div></div></div><div class="visit">📍 Find us near <b>'+COLLEGE+'</b></div></div><div class="bar">© 2026 '+NAME+' · College Project</div></footer><a class="wafab" href="https://wa.me/'+WA+'" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">💬</a>'+
+ '<footer class="ft"><div class="wrap"><div class="fgrid"><div><a class="logo" href="index.html"><i class="lg">🍽️</i><span>Family<small>Restaurant</small></span></a><p>Delicious world cuisine for the whole family. Fresh food, warm service and a table for everyone.</p><div class="soc"><a href="tel:'+PHONE+'" aria-label="Call us">📞</a><a href="https://wa.me/'+WA+'" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a><a href="mailto:'+EMAIL+'" aria-label="Email">✉️</a><a href="'+MAPS+'" target="_blank" rel="noopener" aria-label="Location">📍</a></div></div><div><h3>Quick links</h3>'+nav+'</div><div><h3>Contact</h3><span>📍 '+ADDRESS+'</span><a href="tel:'+PHONE+'">📞 '+PHONE_SHOW+'</a><a href="https://wa.me/'+WA+'" target="_blank" rel="noopener">💬 Chat on WhatsApp</a><a href="mailto:'+EMAIL+'">✉️ '+EMAIL+'</a></div><div class="hrs"><h3>Opening hours</h3><div><span>Mon – Sat</span><span>11 AM – 11 PM</span></div><div class="sunr"><span>Sunday ⭐</span><span>10 AM – 11:30 PM</span></div><div><span>Sunday offers</span><span>25% OFF</span></div></div></div><div class="visit">📍 Find us near <b>'+COLLEGE+'</b></div></div><div class="wm" aria-hidden="true">Family Restaurant</div><div class="bar">© 2026 '+NAME+' · College Project</div></footer><a class="wafab" href="https://wa.me/'+WA+'" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">💬</a>'+
  '<div class="sh" id="sh"></div>'+
- '<aside class="dr" id="dr" aria-label="Cart"><div class="dh"><h3>Your Cart</h3><button id="dcl" aria-label="Close cart">×</button></div><div class="cl" id="cl"></div><div class="fdp" id="fdp"></div><div class="cp"><input id="cin" placeholder="Coupon code" autocomplete="off"><button class="btn" onclick="applyCoupon()">Apply</button></div><div class="cch"><button onclick="applyCoupon(\'WELCOME20\')">WELCOME20</button><button onclick="applyCoupon(\'FEAST150\')">FEAST150</button><button onclick="applyCoupon(\'SUNDAY25\')">SUNDAY25</button></div><div class="msg" id="cmsg"></div><div class="sm" id="sm"></div><button class="btn" style="margin-top:10px;width:100%" onclick="openCheckout()">Checkout</button></aside>'+
- '<div class="md" id="ck"><div class="box"><h3 style="margin-bottom:12px">Delivery details</h3><form id="ckForm" novalidate><div class="fg"><div><label for="cn">Name</label><input id="cn" autocomplete="name"></div><div><label for="cp">Mobile number</label><input id="cp" type="tel" inputmode="numeric" maxlength="11" autocomplete="tel"></div><div class="full"><label for="ca">Delivery address</label><textarea id="ca" rows="2"></textarea></div><div class="full"><label for="cpay">Payment method</label><select id="cpay"><option>Cash on delivery</option><option>UPI</option><option>Card</option></select></div></div><div class="msg" id="ckMsg"></div><div class="bt"><button type="button" class="btn gh" onclick="closeModal(\'ck\')">Back</button><button class="btn" type="submit" style="flex:1">Place Order</button></div></form></div></div>'+
+ '<aside class="dr" id="dr" aria-label="Cart"><div class="dh"><h3>Your Cart</h3><button id="dcl" aria-label="Close cart">×</button></div><div class="cl" id="cl"></div><div class="otp" id="otp"></div><div class="fdp" id="fdp"></div><div class="cp"><input id="cin" placeholder="Coupon code" autocomplete="off"><button class="btn" onclick="applyCoupon()">Apply</button></div><div class="cch"><button onclick="applyCoupon(\'WELCOME20\')">WELCOME20</button><button onclick="applyCoupon(\'FEAST150\')">FEAST150</button><button onclick="applyCoupon(\'SUNDAY25\')">SUNDAY25</button></div><div class="msg" id="cmsg"></div><div class="sm" id="sm"></div><button class="btn" style="margin-top:10px;width:100%" onclick="openCheckout()">Checkout</button></aside>'+
+ '<div class="md" id="ck"><div class="box"><h3 style="margin-bottom:12px">Delivery details</h3><form id="ckForm" novalidate><div class="fg"><div><label for="cn">Name</label><input id="cn" autocomplete="name"></div><div><label for="cp">Mobile number</label><input id="cp" type="tel" inputmode="numeric" maxlength="11" autocomplete="tel"></div><div class="full"><label for="ca" id="caL">Delivery address</label><textarea id="ca" rows="2"></textarea></div><div class="full"><label for="cpay">Payment method</label><select id="cpay"><option>Cash on delivery</option><option>UPI</option><option>Card</option></select></div></div><div class="msg" id="ckMsg"></div><div class="bt"><button type="button" class="btn gh" onclick="closeModal(\'ck\')">Back</button><button class="btn" type="submit" style="flex:1">Place Order</button></div></form></div></div>'+
  '<div class="md" id="dn"><div class="box dn"><div class="big noprint" id="dnI"></div><h3 id="dnT" class="noprint" style="margin:6px 0"></h3><p id="dnP" class="sm noprint"></p><div id="dnS"></div><div class="bt noprint"><span id="dnL"></span><button class="btn gh" onclick="window.print()">Print / Save PDF</button><button class="btn gh" onclick="closeModal(\'dn\')">Close</button></div></div></div>'+
  '<div class="toast" id="toast" role="status"></div>');
  $("cbtn").onclick=function(){toggleCart(true)};
@@ -186,7 +195,8 @@ function placeOrder(e){
  var hd=document.querySelector(".hd"),tt=document.createElement("button"),tick=false;
  tt.className="totop";tt.setAttribute("aria-label","Back to top");tt.textContent="↑";
  tt.onclick=function(){window.scrollTo({top:0,behavior:"smooth"})};document.body.appendChild(tt);
- function onScroll(){if(tick)return;tick=true;requestAnimationFrame(function(){var y=window.pageYOffset||0;if(hd)hd.classList.toggle("sc",y>20);tt.classList.toggle("show",y>500);tick=false})}
+ var spb=document.createElement("div");spb.className="spb";document.body.appendChild(spb);
+ function onScroll(){if(tick)return;tick=true;requestAnimationFrame(function(){var y=window.pageYOffset||0;if(hd)hd.classList.toggle("sc",y>20);tt.classList.toggle("show",y>500);var dh=document.documentElement.scrollHeight-window.innerHeight;spb.style.transform="scaleX("+(dh>0?Math.min(1,y/dh):0)+")";tick=false})}
  window.addEventListener("scroll",onScroll,{passive:true});onScroll();
  function count(el){var raw=el.getAttribute("data-n"),t=parseFloat(raw),d=(raw.split(".")[1]||"").length,sfx=el.getAttribute("data-s")||"",st=Date.now();(function f(){var p=Math.min(1,(Date.now()-st)/1200);el.textContent=(t*p).toFixed(d)+sfx;if(p<1)requestAnimationFrame(f)})()}
  if(!("IntersectionObserver" in window))return;
